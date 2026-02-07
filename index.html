@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bike Trainer</title>
+    <title>Bike Trainer Pro</title>
     <style>
         * {
             margin: 0;
@@ -31,6 +31,7 @@
             width: 100%;
             aspect-ratio: 16/9;
             background: #111;
+            overflow: hidden;
         }
 
         #youtube-player {
@@ -54,47 +55,159 @@
             opacity: 0.5;
         }
 
-        /* 오버레이 대시보드 */
-        .overlay-dashboard {
+        /* 핸들바 오버레이 */
+        .handlebar-overlay {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            display: flex;
-            justify-content: center;
-            gap: 24px;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 120px;
+            pointer-events: none;
+            display: none;
+        }
+
+        .handlebar-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 속도 블러 효과 */
+        .speed-blur {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .speed-blur::before,
+        .speed-blur::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 15%;
+            background: linear-gradient(to right, rgba(0,0,0,0.4), transparent);
+        }
+
+        .speed-blur::before {
+            left: 0;
+        }
+
+        .speed-blur::after {
+            right: 0;
+            transform: scaleX(-1);
+        }
+
+        /* 계기판 오버레이 */
+        .dashboard-overlay {
+            position: absolute;
+            bottom: 130px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: 12px;
             pointer-events: none;
         }
 
-        .stat-card {
-            background: rgba(0, 0, 0, 0.7);
+        .gauge {
+            background: rgba(0, 0, 0, 0.75);
             backdrop-filter: blur(10px);
-            border-radius: 12px;
-            padding: 12px 20px;
+            border-radius: 16px;
+            padding: 12px 16px;
             text-align: center;
-            min-width: 100px;
+            min-width: 80px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .stat-value {
-            font-size: 32px;
+        .gauge-value {
+            font-size: 28px;
             font-weight: 700;
-            color: #00ff88;
             line-height: 1;
         }
 
-        .stat-label {
-            font-size: 12px;
+        .gauge-speed { color: #00ff88; }
+        .gauge-cadence { color: #00aaff; }
+        .gauge-power { color: #ffaa00; }
+        .gauge-distance { color: #ff66aa; }
+        .gauge-calories { color: #aa66ff; }
+        .gauge-time { color: #ffffff; }
+
+        .gauge-label {
+            font-size: 10px;
             color: #888;
             margin-top: 4px;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* 배속 표시 */
+        .playback-rate {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .playback-rate.fast { color: #ff6644; }
+        .playback-rate.normal { color: #00ff88; }
+        .playback-rate.slow { color: #66aaff; }
+
+        /* 일시정지 오버레이 */
+        .pause-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+
+        .pause-overlay.visible {
+            opacity: 1;
+        }
+
+        .pause-overlay svg {
+            width: 80px;
+            height: 80px;
+            color: #fff;
+            margin-bottom: 16px;
+            animation: pulse-icon 2s infinite;
+        }
+
+        @keyframes pulse-icon {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+        }
+
+        .pause-overlay p {
+            font-size: 18px;
+            color: #888;
         }
 
         /* 컨트롤 패널 */
         .control-panel {
-            padding: 20px;
+            padding: 16px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
+            background: #0a0a0a;
         }
 
         .url-input-group {
@@ -105,7 +218,7 @@
         .url-input-group input {
             flex: 1;
             padding: 14px 16px;
-            border: 2px solid #333;
+            border: 2px solid #222;
             border-radius: 12px;
             background: #111;
             color: #fff;
@@ -119,7 +232,7 @@
         }
 
         .url-input-group input::placeholder {
-            color: #555;
+            color: #444;
         }
 
         .btn {
@@ -145,19 +258,19 @@
             background: #00cc6a;
         }
 
-        .btn-primary:disabled {
-            background: #333;
-            color: #666;
-            cursor: not-allowed;
-        }
-
         .btn-secondary {
             background: #222;
             color: #fff;
+            flex: 1;
         }
 
         .btn-secondary:hover {
             background: #333;
+        }
+
+        .btn-secondary.active {
+            background: #00ff88;
+            color: #000;
         }
 
         .btn-connect {
@@ -175,15 +288,20 @@
             color: #000;
         }
 
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
         /* 연결 상태 */
         .connection-status {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            padding: 12px;
+            padding: 10px;
             background: #111;
-            border-radius: 12px;
+            border-radius: 10px;
             font-size: 14px;
         }
 
@@ -204,64 +322,118 @@
             50% { opacity: 0.5; }
         }
 
-        /* 일시정지 오버레이 */
-        .pause-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
+        /* 라이딩 기록 */
+        .ride-history {
+            background: #111;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 8px;
+        }
+
+        .ride-history h3 {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .ride-history h3 button {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .ride-list {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
+            gap: 8px;
+            max-height: 150px;
+            overflow-y: auto;
         }
 
-        .pause-overlay.visible {
-            opacity: 1;
-        }
-
-        .pause-overlay svg {
-            width: 80px;
-            height: 80px;
-            color: #fff;
-            margin-bottom: 16px;
-        }
-
-        .pause-overlay p {
-            font-size: 18px;
-            color: #888;
-        }
-
-        /* 프로토콜 선택 */
-        .protocol-info {
-            font-size: 12px;
-            color: #666;
-            text-align: center;
-        }
-
-        /* 에러/알림 메시지 */
-        .message {
-            padding: 12px 16px;
+        .ride-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: #1a1a1a;
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 13px;
+        }
+
+        .ride-item-date {
+            color: #666;
+        }
+
+        .ride-item-stats {
+            display: flex;
+            gap: 12px;
+        }
+
+        .ride-item-stats span {
+            color: #aaa;
+        }
+
+        .no-rides {
+            color: #444;
+            font-size: 13px;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* 메시지 */
+        .message {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
             display: none;
         }
 
         .message.error {
-            background: rgba(255, 68, 68, 0.2);
+            background: rgba(255, 68, 68, 0.15);
             color: #ff6666;
             display: block;
         }
 
         .message.info {
-            background: rgba(0, 102, 255, 0.2);
+            background: rgba(0, 102, 255, 0.15);
             color: #66aaff;
             display: block;
+        }
+
+        .protocol-info {
+            font-size: 11px;
+            color: #444;
+            text-align: center;
+        }
+
+        /* 총 기록 */
+        .total-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 12px;
+            background: #111;
+            border-radius: 12px;
+        }
+
+        .total-stat {
+            text-align: center;
+        }
+
+        .total-stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #00ff88;
+        }
+
+        .total-stat-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
         }
     </style>
 </head>
@@ -279,28 +451,66 @@
                 <div id="youtube-player"></div>
             </div>
 
+            <!-- 속도 블러 효과 -->
+            <div class="speed-blur" id="speed-blur"></div>
+
+            <!-- 배속 표시 -->
+            <div class="playback-rate" id="playback-rate">1.0x</div>
+
             <!-- 일시정지 오버레이 -->
             <div class="pause-overlay" id="pause-overlay">
                 <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                    <path d="M8 5v14l11-7z"/>
                 </svg>
                 <p>페달을 밟으면 재생됩니다</p>
             </div>
 
-            <!-- 오버레이 대시보드 -->
-            <div class="overlay-dashboard" id="dashboard" style="display: none;">
-                <div class="stat-card">
-                    <div class="stat-value" id="speed-value">0.0</div>
-                    <div class="stat-label">km/h</div>
+            <!-- 계기판 오버레이 -->
+            <div class="dashboard-overlay" id="dashboard">
+                <div class="gauge">
+                    <div class="gauge-value gauge-speed" id="speed-value">0.0</div>
+                    <div class="gauge-label">km/h</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="cadence-value">0</div>
-                    <div class="stat-label">RPM</div>
+                <div class="gauge">
+                    <div class="gauge-value gauge-cadence" id="cadence-value">0</div>
+                    <div class="gauge-label">RPM</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="power-value">0</div>
-                    <div class="stat-label">W</div>
+                <div class="gauge">
+                    <div class="gauge-value gauge-power" id="power-value">0</div>
+                    <div class="gauge-label">W</div>
                 </div>
+                <div class="gauge">
+                    <div class="gauge-value gauge-distance" id="distance-value">0.00</div>
+                    <div class="gauge-label">km</div>
+                </div>
+                <div class="gauge">
+                    <div class="gauge-value gauge-calories" id="calories-value">0</div>
+                    <div class="gauge-label">kcal</div>
+                </div>
+                <div class="gauge">
+                    <div class="gauge-value gauge-time" id="time-value">00:00</div>
+                    <div class="gauge-label">시간</div>
+                </div>
+            </div>
+
+            <!-- 핸들바 오버레이 -->
+            <div class="handlebar-overlay" id="handlebar">
+                <svg class="handlebar-svg" viewBox="0 0 400 80" preserveAspectRatio="xMidYMax slice">
+                    <defs>
+                        <linearGradient id="handleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#333;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#111;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <!-- 핸들바 -->
+                    <path d="M0,80 L0,50 Q50,30 100,35 L150,40 Q200,45 200,45 Q200,45 250,40 L300,35 Q350,30 400,50 L400,80 Z" fill="url(#handleGrad)"/>
+                    <!-- 그립 왼쪽 -->
+                    <rect x="20" y="45" width="60" height="20" rx="10" fill="#222" stroke="#444" stroke-width="1"/>
+                    <!-- 그립 오른쪽 -->
+                    <rect x="320" y="45" width="60" height="20" rx="10" fill="#222" stroke="#444" stroke-width="1"/>
+                    <!-- 스템 -->
+                    <rect x="185" y="50" width="30" height="30" rx="3" fill="#1a1a1a" stroke="#333" stroke-width="1"/>
+                </svg>
             </div>
         </div>
 
@@ -325,6 +535,42 @@
                 <span id="status-text">연결 안됨</span>
             </div>
 
+            <div class="button-row">
+                <button class="btn btn-secondary" id="btn-speed-sync">
+                    🚀 배속 연동
+                </button>
+                <button class="btn btn-secondary" id="btn-save-ride">
+                    💾 라이딩 저장
+                </button>
+            </div>
+
+            <!-- 총 기록 -->
+            <div class="total-stats">
+                <div class="total-stat">
+                    <div class="total-stat-value" id="total-distance">0</div>
+                    <div class="total-stat-label">총 거리 (km)</div>
+                </div>
+                <div class="total-stat">
+                    <div class="total-stat-value" id="total-calories">0</div>
+                    <div class="total-stat-label">총 칼로리</div>
+                </div>
+                <div class="total-stat">
+                    <div class="total-stat-value" id="total-rides">0</div>
+                    <div class="total-stat-label">총 라이딩</div>
+                </div>
+            </div>
+
+            <!-- 라이딩 기록 -->
+            <div class="ride-history">
+                <h3>
+                    최근 라이딩
+                    <button id="clear-history">기록 삭제</button>
+                </h3>
+                <div class="ride-list" id="ride-list">
+                    <div class="no-rides">아직 저장된 라이딩이 없습니다</div>
+                </div>
+            </div>
+
             <p class="protocol-info">FTMS / CSC 프로토콜 자동 감지</p>
         </div>
     </div>
@@ -343,8 +589,17 @@
         let currentSpeed = 0;
         let currentCadence = 0;
         let currentPower = 0;
-        let lastDataTime = 0;
-        let pauseTimeout = null;
+        let isPedalingActive = false;
+        let speedSyncEnabled = false;
+        let pedalingCheckInterval = null;
+        let lastDataReceived = 0;
+
+        // 라이딩 데이터
+        let rideStartTime = null;
+        let totalDistance = 0;
+        let totalCalories = 0;
+        let rideTime = 0;
+        let lastUpdateTime = null;
 
         // Bluetooth UUIDs
         const FTMS_SERVICE = '00001826-0000-1000-8000-00805f9b34fb';
@@ -362,10 +617,22 @@
         const speedValue = document.getElementById('speed-value');
         const cadenceValue = document.getElementById('cadence-value');
         const powerValue = document.getElementById('power-value');
+        const distanceValue = document.getElementById('distance-value');
+        const caloriesValue = document.getElementById('calories-value');
+        const timeValue = document.getElementById('time-value');
         const dashboard = document.getElementById('dashboard');
+        const handlebar = document.getElementById('handlebar');
         const placeholder = document.getElementById('placeholder');
         const pauseOverlay = document.getElementById('pause-overlay');
         const message = document.getElementById('message');
+        const speedBlur = document.getElementById('speed-blur');
+        const playbackRateDisplay = document.getElementById('playback-rate');
+        const btnSpeedSync = document.getElementById('btn-speed-sync');
+        const btnSaveRide = document.getElementById('btn-save-ride');
+        const rideList = document.getElementById('ride-list');
+
+        // 저장된 기록 로드
+        loadHistory();
 
         // YouTube API 준비 완료
         window.onYouTubeIframeAPIReady = function() {
@@ -412,11 +679,11 @@
                         onReady: () => {
                             isPlayerReady = true;
                             if (isConnected) {
-                                dashboard.style.display = 'flex';
+                                showDashboard();
                             }
                         },
                         onStateChange: (event) => {
-                            // 사용자가 직접 재생/일시정지할 때도 처리
+                            // 영상 상태 변경 처리
                         }
                     }
                 });
@@ -424,6 +691,13 @@
 
             showMessage('', '');
         });
+
+        // 대시보드 표시
+        function showDashboard() {
+            dashboard.style.display = 'flex';
+            handlebar.style.display = 'block';
+            playbackRateDisplay.style.display = 'block';
+        }
 
         // 블루투스 연결
         connectBtn.addEventListener('click', async () => {
@@ -435,7 +709,6 @@
             try {
                 showMessage('장치 검색 중...', 'info');
 
-                // FTMS와 CSC 모두 검색
                 bluetoothDevice = await navigator.bluetooth.requestDevice({
                     filters: [
                         { services: [FTMS_SERVICE] },
@@ -477,6 +750,8 @@
 
                 if (connected) {
                     setConnected(true);
+                    resetRideData();
+                    startPedalingCheck();
                 } else {
                     throw new Error('지원되는 프로토콜을 찾을 수 없습니다');
                 }
@@ -489,45 +764,59 @@
             }
         });
 
+        // 페달링 체크 시작 (일시정지 감지용)
+        function startPedalingCheck() {
+            if (pedalingCheckInterval) clearInterval(pedalingCheckInterval);
+            
+            pedalingCheckInterval = setInterval(() => {
+                const now = Date.now();
+                const timeSinceLastData = now - lastDataReceived;
+                
+                // 2초 이상 데이터가 없거나 속도/케이던스가 낮으면 멈춤으로 판단
+                if (timeSinceLastData > 2000 || (currentSpeed < 1 && currentCadence < 5)) {
+                    if (isPedalingActive) {
+                        isPedalingActive = false;
+                        onStopPedaling();
+                    }
+                }
+            }, 500);
+        }
+
+        // 페달링 체크 중지
+        function stopPedalingCheck() {
+            if (pedalingCheckInterval) {
+                clearInterval(pedalingCheckInterval);
+                pedalingCheckInterval = null;
+            }
+        }
+
         // FTMS 데이터 처리
         function handleFTMSData(event) {
             const value = event.target.value;
-            // FTMS Indoor Bike Data
-            // Flags (2 bytes) + Instantaneous Speed (2 bytes) + ...
-
             const flags = value.getUint16(0, true);
             let offset = 2;
 
-            // Instantaneous Speed (0.01 km/h resolution)
             currentSpeed = value.getUint16(offset, true) * 0.01;
             offset += 2;
 
-            // Average Speed (if present)
             if (flags & 0x02) offset += 2;
 
-            // Instantaneous Cadence (0.5 rpm resolution)
             if (flags & 0x04) {
                 currentCadence = value.getUint16(offset, true) * 0.5;
                 offset += 2;
             }
 
-            // Average Cadence (if present)
             if (flags & 0x08) offset += 2;
-
-            // Total Distance (if present)
             if (flags & 0x10) offset += 3;
-
-            // Resistance Level (if present)
             if (flags & 0x20) offset += 2;
 
-            // Instantaneous Power (if present)
             if (flags & 0x40) {
                 currentPower = value.getInt16(offset, true);
                 offset += 2;
             }
 
-            updateDisplay();
-            handlePedalActivity();
+            lastDataReceived = Date.now();
+            processData();
         }
 
         // CSC 데이터 처리
@@ -535,14 +824,13 @@
         let lastWheelEventTime = null;
         let lastCrankRevolutions = null;
         let lastCrankEventTime = null;
-        const WHEEL_CIRCUMFERENCE = 2.1; // 미터 (700c 타이어 기준)
+        const WHEEL_CIRCUMFERENCE = 2.1;
 
         function handleCSCData(event) {
             const value = event.target.value;
             const flags = value.getUint8(0);
             let offset = 1;
 
-            // Wheel Revolution Data
             if (flags & 0x01) {
                 const wheelRevolutions = value.getUint32(offset, true);
                 const wheelEventTime = value.getUint16(offset + 4, true);
@@ -551,20 +839,21 @@
                 if (lastWheelRevolutions !== null && wheelRevolutions !== lastWheelRevolutions) {
                     const revDiff = wheelRevolutions - lastWheelRevolutions;
                     let timeDiff = wheelEventTime - lastWheelEventTime;
-                    if (timeDiff < 0) timeDiff += 65536; // Handle overflow
+                    if (timeDiff < 0) timeDiff += 65536;
                     
                     if (timeDiff > 0) {
-                        // Speed in km/h
                         const rpm = (revDiff / (timeDiff / 1024)) * 60;
                         currentSpeed = (rpm * WHEEL_CIRCUMFERENCE * 60) / 1000;
                     }
+                } else if (lastWheelRevolutions !== null && wheelRevolutions === lastWheelRevolutions) {
+                    // 휠이 안 돌고 있으면 속도 0
+                    currentSpeed = Math.max(0, currentSpeed - 0.5);
                 }
 
                 lastWheelRevolutions = wheelRevolutions;
                 lastWheelEventTime = wheelEventTime;
             }
 
-            // Crank Revolution Data
             if (flags & 0x02) {
                 const crankRevolutions = value.getUint16(offset, true);
                 const crankEventTime = value.getUint16(offset + 2, true);
@@ -577,14 +866,73 @@
                     if (timeDiff > 0) {
                         currentCadence = Math.round((revDiff / (timeDiff / 1024)) * 60);
                     }
+                } else if (lastCrankRevolutions !== null && crankRevolutions === lastCrankRevolutions) {
+                    // 크랭크가 안 돌고 있으면 케이던스 0
+                    currentCadence = Math.max(0, currentCadence - 5);
                 }
 
                 lastCrankRevolutions = crankRevolutions;
                 lastCrankEventTime = crankEventTime;
             }
 
+            lastDataReceived = Date.now();
+            processData();
+        }
+
+        // 데이터 처리 통합
+        function processData() {
+            const now = Date.now();
+            
+            // 거리 계산 (km)
+            if (lastUpdateTime && currentSpeed > 0) {
+                const hoursDiff = (now - lastUpdateTime) / 3600000;
+                totalDistance += currentSpeed * hoursDiff;
+            }
+            lastUpdateTime = now;
+
+            // 칼로리 계산 (간단한 공식)
+            if (currentPower > 0) {
+                const hoursDiff = 1 / 3600; // 1초
+                totalCalories += (currentPower * 3.6 * hoursDiff) / 4.184;
+            } else if (currentSpeed > 0) {
+                // 파워 없으면 속도 기반 추정
+                const hoursDiff = 1 / 3600;
+                totalCalories += (currentSpeed * 7 * hoursDiff);
+            }
+
+            // 라이딩 시간
+            if (currentSpeed > 1 || currentCadence > 5) {
+                if (!rideStartTime) rideStartTime = now;
+                rideTime = Math.floor((now - rideStartTime) / 1000);
+                
+                // 활성 상태
+                if (!isPedalingActive) {
+                    isPedalingActive = true;
+                    onStartPedaling();
+                }
+            }
+
             updateDisplay();
-            handlePedalActivity();
+            updatePlaybackRate();
+            updateSpeedEffects();
+        }
+
+        // 페달 시작
+        function onStartPedaling() {
+            console.log('Start pedaling');
+            if (isPlayerReady && player) {
+                player.playVideo();
+                pauseOverlay.classList.remove('visible');
+            }
+        }
+
+        // 페달 멈춤
+        function onStopPedaling() {
+            console.log('Stop pedaling');
+            if (isPlayerReady && player) {
+                player.pauseVideo();
+                pauseOverlay.classList.add('visible');
+            }
         }
 
         // 디스플레이 업데이트
@@ -592,28 +940,134 @@
             speedValue.textContent = currentSpeed.toFixed(1);
             cadenceValue.textContent = Math.round(currentCadence);
             powerValue.textContent = Math.round(currentPower);
+            distanceValue.textContent = totalDistance.toFixed(2);
+            caloriesValue.textContent = Math.round(totalCalories);
+            
+            const mins = Math.floor(rideTime / 60);
+            const secs = rideTime % 60;
+            timeValue.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // 페달 활동 감지 및 영상 제어
-        function handlePedalActivity() {
-            lastDataTime = Date.now();
+        // 배속 업데이트
+        function updatePlaybackRate() {
+            if (!speedSyncEnabled || !player || !isPlayerReady) return;
 
-            // 속도 또는 케이던스가 있으면 재생
-            if ((currentSpeed > 0.5 || currentCadence > 10) && isPlayerReady && player) {
-                if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                    player.playVideo();
-                    pauseOverlay.classList.remove('visible');
-                }
+            let rate = 1.0;
+            
+            if (currentSpeed < 10) {
+                rate = 0.75;
+            } else if (currentSpeed < 20) {
+                rate = 1.0;
+            } else if (currentSpeed < 30) {
+                rate = 1.25;
+            } else {
+                rate = 1.5;
             }
 
-            // 멈춤 감지 타이머 리셋
-            if (pauseTimeout) clearTimeout(pauseTimeout);
-            pauseTimeout = setTimeout(() => {
-                if (currentSpeed < 0.5 && currentCadence < 10 && isPlayerReady && player) {
-                    player.pauseVideo();
-                    pauseOverlay.classList.add('visible');
-                }
-            }, 2000); // 2초 동안 데이터 없으면 일시정지
+            player.setPlaybackRate(rate);
+            playbackRateDisplay.textContent = rate.toFixed(2) + 'x';
+            
+            playbackRateDisplay.className = 'playback-rate';
+            if (rate > 1.0) playbackRateDisplay.classList.add('fast');
+            else if (rate < 1.0) playbackRateDisplay.classList.add('slow');
+            else playbackRateDisplay.classList.add('normal');
+        }
+
+        // 속도 효과
+        function updateSpeedEffects() {
+            // 속도에 따른 블러 효과
+            const blurIntensity = Math.min(currentSpeed / 40, 1);
+            speedBlur.style.opacity = blurIntensity * 0.5;
+        }
+
+        // 배속 연동 토글
+        btnSpeedSync.addEventListener('click', () => {
+            speedSyncEnabled = !speedSyncEnabled;
+            btnSpeedSync.classList.toggle('active', speedSyncEnabled);
+            
+            if (!speedSyncEnabled && player && isPlayerReady) {
+                player.setPlaybackRate(1.0);
+                playbackRateDisplay.textContent = '1.00x';
+                playbackRateDisplay.className = 'playback-rate normal';
+            }
+        });
+
+        // 라이딩 저장
+        btnSaveRide.addEventListener('click', () => {
+            if (totalDistance < 0.01) {
+                showMessage('저장할 라이딩 데이터가 없습니다', 'error');
+                return;
+            }
+
+            const ride = {
+                date: new Date().toISOString(),
+                distance: totalDistance.toFixed(2),
+                calories: Math.round(totalCalories),
+                time: rideTime
+            };
+
+            const history = JSON.parse(localStorage.getItem('bikeHistory') || '[]');
+            history.unshift(ride);
+            if (history.length > 20) history.pop();
+            localStorage.setItem('bikeHistory', JSON.stringify(history));
+
+            loadHistory();
+            resetRideData();
+            showMessage('라이딩이 저장되었습니다!', 'info');
+        });
+
+        // 기록 로드
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('bikeHistory') || '[]');
+            
+            if (history.length === 0) {
+                rideList.innerHTML = '<div class="no-rides">아직 저장된 라이딩이 없습니다</div>';
+            } else {
+                rideList.innerHTML = history.slice(0, 5).map(ride => {
+                    const date = new Date(ride.date);
+                    const dateStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2,'0')}`;
+                    const mins = Math.floor(ride.time / 60);
+                    return `
+                        <div class="ride-item">
+                            <span class="ride-item-date">${dateStr}</span>
+                            <div class="ride-item-stats">
+                                <span>${ride.distance}km</span>
+                                <span>${ride.calories}kcal</span>
+                                <span>${mins}분</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // 총 기록 계산
+            const totals = history.reduce((acc, ride) => ({
+                distance: acc.distance + parseFloat(ride.distance),
+                calories: acc.calories + ride.calories,
+                rides: acc.rides + 1
+            }), { distance: 0, calories: 0, rides: 0 });
+
+            document.getElementById('total-distance').textContent = totals.distance.toFixed(1);
+            document.getElementById('total-calories').textContent = totals.calories;
+            document.getElementById('total-rides').textContent = totals.rides;
+        }
+
+        // 기록 삭제
+        document.getElementById('clear-history').addEventListener('click', () => {
+            if (confirm('모든 라이딩 기록을 삭제하시겠습니까?')) {
+                localStorage.removeItem('bikeHistory');
+                loadHistory();
+            }
+        });
+
+        // 라이딩 데이터 리셋
+        function resetRideData() {
+            totalDistance = 0;
+            totalCalories = 0;
+            rideTime = 0;
+            rideStartTime = null;
+            lastUpdateTime = null;
+            updateDisplay();
         }
 
         // 연결 상태 설정
@@ -626,12 +1080,17 @@
                 statusText.textContent = bluetoothDevice.name || '연결됨';
                 connectText.textContent = '연결 해제';
                 if (isPlayerReady) {
-                    dashboard.style.display = 'flex';
+                    showDashboard();
                 }
+                // 연결 시 일시정지 오버레이 표시
+                pauseOverlay.classList.add('visible');
             } else {
                 statusText.textContent = '연결 안됨';
                 connectText.textContent = '블루투스 연결';
                 dashboard.style.display = 'none';
+                handlebar.style.display = 'none';
+                playbackRateDisplay.style.display = 'none';
+                pauseOverlay.classList.remove('visible');
             }
         }
 
@@ -640,14 +1099,17 @@
             if (bluetoothDevice && bluetoothDevice.gatt.connected) {
                 bluetoothDevice.gatt.disconnect();
             }
+            stopPedalingCheck();
         }
 
         // 연결 끊김 핸들러
         function onDisconnected() {
             setConnected(false);
+            stopPedalingCheck();
             currentSpeed = 0;
             currentCadence = 0;
             currentPower = 0;
+            isPedalingActive = false;
             updateDisplay();
             showMessage('연결이 끊어졌습니다', 'error');
         }
