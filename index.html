@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bike Trainer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* 비디오 영역 */
+        .video-section {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #111;
+        }
+
+        #youtube-player {
+            width: 100%;
+            height: 100%;
+        }
+
+        .video-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            gap: 16px;
+        }
+
+        .video-placeholder svg {
+            width: 64px;
+            height: 64px;
+            opacity: 0.5;
+        }
+
+        /* 오버레이 대시보드 */
+        .overlay-dashboard {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            pointer-events: none;
+        }
+
+        .stat-card {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 12px 20px;
+            text-align: center;
+            min-width: 100px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #00ff88;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        /* 컨트롤 패널 */
+        .control-panel {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .url-input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .url-input-group input {
+            flex: 1;
+            padding: 14px 16px;
+            border: 2px solid #333;
+            border-radius: 12px;
+            background: #111;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .url-input-group input:focus {
+            border-color: #00ff88;
+        }
+
+        .url-input-group input::placeholder {
+            color: #555;
+        }
+
+        .btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #00cc6a;
+        }
+
+        .btn-primary:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #222;
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: #333;
+        }
+
+        .btn-connect {
+            background: linear-gradient(135deg, #0066ff, #0044cc);
+            color: #fff;
+            width: 100%;
+        }
+
+        .btn-connect:hover {
+            background: linear-gradient(135deg, #0077ff, #0055dd);
+        }
+
+        .btn-connect.connected {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+        }
+
+        /* 연결 상태 */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            background: #111;
+            border-radius: 12px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4444;
+        }
+
+        .status-dot.connected {
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 일시정지 오버레이 */
+        .pause-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .pause-overlay.visible {
+            opacity: 1;
+        }
+
+        .pause-overlay svg {
+            width: 80px;
+            height: 80px;
+            color: #fff;
+            margin-bottom: 16px;
+        }
+
+        .pause-overlay p {
+            font-size: 18px;
+            color: #888;
+        }
+
+        /* 프로토콜 선택 */
+        .protocol-info {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        /* 에러/알림 메시지 */
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .message.error {
+            background: rgba(255, 68, 68, 0.2);
+            color: #ff6666;
+            display: block;
+        }
+
+        .message.info {
+            background: rgba(0, 102, 255, 0.2);
+            color: #66aaff;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 비디오 섹션 -->
+        <div class="video-section">
+            <div id="player-container">
+                <div class="video-placeholder" id="placeholder">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                    </svg>
+                    <p>유튜브 URL을 입력하세요</p>
+                </div>
+                <div id="youtube-player"></div>
+            </div>
+
+            <!-- 일시정지 오버레이 -->
+            <div class="pause-overlay" id="pause-overlay">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+                <p>페달을 밟으면 재생됩니다</p>
+            </div>
+
+            <!-- 오버레이 대시보드 -->
+            <div class="overlay-dashboard" id="dashboard" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-value" id="speed-value">0.0</div>
+                    <div class="stat-label">km/h</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="cadence-value">0</div>
+                    <div class="stat-label">RPM</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="power-value">0</div>
+                    <div class="stat-label">W</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 컨트롤 패널 -->
+        <div class="control-panel">
+            <div class="url-input-group">
+                <input type="text" id="youtube-url" placeholder="유튜브 URL 붙여넣기">
+                <button class="btn btn-primary" id="load-btn">재생</button>
+            </div>
+
+            <div id="message" class="message"></div>
+
+            <button class="btn btn-connect" id="connect-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/>
+                </svg>
+                <span id="connect-text">블루투스 연결</span>
+            </button>
+
+            <div class="connection-status">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">연결 안됨</span>
+            </div>
+
+            <p class="protocol-info">FTMS / CSC 프로토콜 자동 감지</p>
+        </div>
+    </div>
+
+    <script>
+        // YouTube IFrame API 로드
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        let player = null;
+        let isPlayerReady = false;
+        let bluetoothDevice = null;
+        let isConnected = false;
+        let currentSpeed = 0;
+        let currentCadence = 0;
+        let currentPower = 0;
+        let lastDataTime = 0;
+        let pauseTimeout = null;
+
+        // Bluetooth UUIDs
+        const FTMS_SERVICE = '00001826-0000-1000-8000-00805f9b34fb';
+        const FTMS_INDOOR_BIKE = '00002ad2-0000-1000-8000-00805f9b34fb';
+        const CSC_SERVICE = '00001816-0000-1000-8000-00805f9b34fb';
+        const CSC_MEASUREMENT = '00002a5b-0000-1000-8000-00805f9b34fb';
+
+        // DOM 요소
+        const youtubeUrl = document.getElementById('youtube-url');
+        const loadBtn = document.getElementById('load-btn');
+        const connectBtn = document.getElementById('connect-btn');
+        const connectText = document.getElementById('connect-text');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const speedValue = document.getElementById('speed-value');
+        const cadenceValue = document.getElementById('cadence-value');
+        const powerValue = document.getElementById('power-value');
+        const dashboard = document.getElementById('dashboard');
+        const placeholder = document.getElementById('placeholder');
+        const pauseOverlay = document.getElementById('pause-overlay');
+        const message = document.getElementById('message');
+
+        // YouTube API 준비 완료
+        window.onYouTubeIframeAPIReady = function() {
+            console.log('YouTube API Ready');
+        };
+
+        // 유튜브 URL에서 비디오 ID 추출
+        function extractVideoId(url) {
+            const patterns = [
+                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\?\/]+)/,
+                /^([a-zA-Z0-9_-]{11})$/
+            ];
+            for (const pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+            return null;
+        }
+
+        // 비디오 로드
+        loadBtn.addEventListener('click', () => {
+            const url = youtubeUrl.value.trim();
+            const videoId = extractVideoId(url);
+
+            if (!videoId) {
+                showMessage('올바른 유튜브 URL을 입력하세요', 'error');
+                return;
+            }
+
+            placeholder.style.display = 'none';
+
+            if (player) {
+                player.loadVideoById(videoId);
+            } else {
+                player = new YT.Player('youtube-player', {
+                    videoId: videoId,
+                    playerVars: {
+                        playsinline: 1,
+                        controls: 1,
+                        rel: 0,
+                        modestbranding: 1
+                    },
+                    events: {
+                        onReady: () => {
+                            isPlayerReady = true;
+                            if (isConnected) {
+                                dashboard.style.display = 'flex';
+                            }
+                        },
+                        onStateChange: (event) => {
+                            // 사용자가 직접 재생/일시정지할 때도 처리
+                        }
+                    }
+                });
+            }
+
+            showMessage('', '');
+        });
+
+        // 블루투스 연결
+        connectBtn.addEventListener('click', async () => {
+            if (isConnected) {
+                disconnect();
+                return;
+            }
+
+            try {
+                showMessage('장치 검색 중...', 'info');
+
+                // FTMS와 CSC 모두 검색
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { services: [FTMS_SERVICE] },
+                        { services: [CSC_SERVICE] }
+                    ],
+                    optionalServices: [FTMS_SERVICE, CSC_SERVICE]
+                });
+
+                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+                const server = await bluetoothDevice.gatt.connect();
+                let connected = false;
+
+                // FTMS 시도
+                try {
+                    const ftmsService = await server.getPrimaryService(FTMS_SERVICE);
+                    const ftmsChar = await ftmsService.getCharacteristic(FTMS_INDOOR_BIKE);
+                    await ftmsChar.startNotifications();
+                    ftmsChar.addEventListener('characteristicvaluechanged', handleFTMSData);
+                    connected = true;
+                    showMessage('FTMS 프로토콜로 연결됨', 'info');
+                } catch (e) {
+                    console.log('FTMS not available, trying CSC...');
+                }
+
+                // CSC 시도
+                if (!connected) {
+                    try {
+                        const cscService = await server.getPrimaryService(CSC_SERVICE);
+                        const cscChar = await cscService.getCharacteristic(CSC_MEASUREMENT);
+                        await cscChar.startNotifications();
+                        cscChar.addEventListener('characteristicvaluechanged', handleCSCData);
+                        connected = true;
+                        showMessage('CSC 프로토콜로 연결됨', 'info');
+                    } catch (e) {
+                        console.log('CSC not available');
+                    }
+                }
+
+                if (connected) {
+                    setConnected(true);
+                } else {
+                    throw new Error('지원되는 프로토콜을 찾을 수 없습니다');
+                }
+
+            } catch (error) {
+                console.error('Connection error:', error);
+                if (error.name !== 'NotFoundError') {
+                    showMessage('연결 실패: ' + error.message, 'error');
+                }
+            }
+        });
+
+        // FTMS 데이터 처리
+        function handleFTMSData(event) {
+            const value = event.target.value;
+            // FTMS Indoor Bike Data
+            // Flags (2 bytes) + Instantaneous Speed (2 bytes) + ...
+
+            const flags = value.getUint16(0, true);
+            let offset = 2;
+
+            // Instantaneous Speed (0.01 km/h resolution)
+            currentSpeed = value.getUint16(offset, true) * 0.01;
+            offset += 2;
+
+            // Average Speed (if present)
+            if (flags & 0x02) offset += 2;
+
+            // Instantaneous Cadence (0.5 rpm resolution)
+            if (flags & 0x04) {
+                currentCadence = value.getUint16(offset, true) * 0.5;
+                offset += 2;
+            }
+
+            // Average Cadence (if present)
+            if (flags & 0x08) offset += 2;
+
+            // Total Distance (if present)
+            if (flags & 0x10) offset += 3;
+
+            // Resistance Level (if present)
+            if (flags & 0x20) offset += 2;
+
+            // Instantaneous Power (if present)
+            if (flags & 0x40) {
+                currentPower = value.getInt16(offset, true);
+                offset += 2;
+            }
+
+            updateDisplay();
+            handlePedalActivity();
+        }
+
+        // CSC 데이터 처리
+        let lastWheelRevolutions = null;
+        let lastWheelEventTime = null;
+        let lastCrankRevolutions = null;
+        let lastCrankEventTime = null;
+        const WHEEL_CIRCUMFERENCE = 2.1; // 미터 (700c 타이어 기준)
+
+        function handleCSCData(event) {
+            const value = event.target.value;
+            const flags = value.getUint8(0);
+            let offset = 1;
+
+            // Wheel Revolution Data
+            if (flags & 0x01) {
+                const wheelRevolutions = value.getUint32(offset, true);
+                const wheelEventTime = value.getUint16(offset + 4, true);
+                offset += 6;
+
+                if (lastWheelRevolutions !== null && wheelRevolutions !== lastWheelRevolutions) {
+                    const revDiff = wheelRevolutions - lastWheelRevolutions;
+                    let timeDiff = wheelEventTime - lastWheelEventTime;
+                    if (timeDiff < 0) timeDiff += 65536; // Handle overflow
+                    
+                    if (timeDiff > 0) {
+                        // Speed in km/h
+                        const rpm = (revDiff / (timeDiff / 1024)) * 60;
+                        currentSpeed = (rpm * WHEEL_CIRCUMFERENCE * 60) / 1000;
+                    }
+                }
+
+                lastWheelRevolutions = wheelRevolutions;
+                lastWheelEventTime = wheelEventTime;
+            }
+
+            // Crank Revolution Data
+            if (flags & 0x02) {
+                const crankRevolutions = value.getUint16(offset, true);
+                const crankEventTime = value.getUint16(offset + 2, true);
+
+                if (lastCrankRevolutions !== null && crankRevolutions !== lastCrankRevolutions) {
+                    const revDiff = crankRevolutions - lastCrankRevolutions;
+                    let timeDiff = crankEventTime - lastCrankEventTime;
+                    if (timeDiff < 0) timeDiff += 65536;
+
+                    if (timeDiff > 0) {
+                        currentCadence = Math.round((revDiff / (timeDiff / 1024)) * 60);
+                    }
+                }
+
+                lastCrankRevolutions = crankRevolutions;
+                lastCrankEventTime = crankEventTime;
+            }
+
+            updateDisplay();
+            handlePedalActivity();
+        }
+
+        // 디스플레이 업데이트
+        function updateDisplay() {
+            speedValue.textContent = currentSpeed.toFixed(1);
+            cadenceValue.textContent = Math.round(currentCadence);
+            powerValue.textContent = Math.round(currentPower);
+        }
+
+        // 페달 활동 감지 및 영상 제어
+        function handlePedalActivity() {
+            lastDataTime = Date.now();
+
+            // 속도 또는 케이던스가 있으면 재생
+            if ((currentSpeed > 0.5 || currentCadence > 10) && isPlayerReady && player) {
+                if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                    player.playVideo();
+                    pauseOverlay.classList.remove('visible');
+                }
+            }
+
+            // 멈춤 감지 타이머 리셋
+            if (pauseTimeout) clearTimeout(pauseTimeout);
+            pauseTimeout = setTimeout(() => {
+                if (currentSpeed < 0.5 && currentCadence < 10 && isPlayerReady && player) {
+                    player.pauseVideo();
+                    pauseOverlay.classList.add('visible');
+                }
+            }, 2000); // 2초 동안 데이터 없으면 일시정지
+        }
+
+        // 연결 상태 설정
+        function setConnected(connected) {
+            isConnected = connected;
+            statusDot.classList.toggle('connected', connected);
+            connectBtn.classList.toggle('connected', connected);
+            
+            if (connected) {
+                statusText.textContent = bluetoothDevice.name || '연결됨';
+                connectText.textContent = '연결 해제';
+                if (isPlayerReady) {
+                    dashboard.style.display = 'flex';
+                }
+            } else {
+                statusText.textContent = '연결 안됨';
+                connectText.textContent = '블루투스 연결';
+                dashboard.style.display = 'none';
+            }
+        }
+
+        // 연결 해제
+        function disconnect() {
+            if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                bluetoothDevice.gatt.disconnect();
+            }
+        }
+
+        // 연결 끊김 핸들러
+        function onDisconnected() {
+            setConnected(false);
+            currentSpeed = 0;
+            currentCadence = 0;
+            currentPower = 0;
+            updateDisplay();
+            showMessage('연결이 끊어졌습니다', 'error');
+        }
+
+        // 메시지 표시
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = 'message' + (type ? ' ' + type : '');
+        }
+
+        // URL 입력 엔터키 처리
+        youtubeUrl.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadBtn.click();
+        });
+    </script>
+</body>
+</html>
